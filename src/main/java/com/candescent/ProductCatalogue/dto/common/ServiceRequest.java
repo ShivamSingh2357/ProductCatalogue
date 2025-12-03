@@ -1,0 +1,24 @@
+package com.candescent.ProductCatalogue.dto.common;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Generic wrapper for API request payloads.
+ *
+ * @param <T> the type of the request payload
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ServiceRequest<T> {
+
+    @JsonProperty("payload")
+    private T payload;
+
+    public static <T> ServiceRequest<T> of(T payload) {
+        return new ServiceRequest<>(payload);
+    }
+}
