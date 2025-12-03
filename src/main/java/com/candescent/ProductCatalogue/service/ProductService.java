@@ -1,14 +1,12 @@
 package com.candescent.ProductCatalogue.service;
 
 import com.candescent.ProductCatalogue.dto.common.Pagination;
-import com.candescent.ProductCatalogue.dto.mock.ProductData;
-import com.candescent.ProductCatalogue.dto.mock.RpcResponse;
 import com.candescent.ProductCatalogue.dto.response.ProductResponse;
 import com.candescent.ProductCatalogue.entities.ProductEntity;
 import com.candescent.ProductCatalogue.mapper.ProductResponseMapper;
 import com.candescent.ProductCatalogue.repository.ProductRepository;
 import com.candescent.ProductCatalogue.specification.ProductSpecification;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -26,6 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -46,7 +45,7 @@ public class ProductService {
     @Value("${app.product.use-mock-data:false}")
     private boolean useMockData;
 
-    private List<ProductData> cachedProducts;
+    private List<ProductResponse> cachedProducts;
 
     @PostConstruct
     public void loadMockData() {
@@ -62,15 +61,14 @@ public class ProductService {
         try {
             ClassPathResource resource = new ClassPathResource(MOCK_DATA_FILE);
             try (InputStream inputStream = resource.getInputStream()) {
-                List<RpcResponse> responses = objectMapper.readValue(
-                        inputStream,
-                        new TypeReference<List<RpcResponse>>() {}
-                );
-
-                if (responses != null && !responses.isEmpty()
-                        && responses.get(0).getResult() != null
-                        && responses.get(0).getResult().getData() != null) {
-                    cachedProducts = responses.get(0).getResult().getData();
+                JsonNode rootNode = objectMapper.readTree(inputStream);
+                
+                if (rootNode.has("payload") && rootNode.get("payload").isArray()) {
+                    cachedProducts = new ArrayList<>();
+                    for (JsonNode productNode : rootNode.get("payload")) {
+                        ProductResponse product = objectMapper.treeToValue(productNode, ProductResponse.class);
+                        cachedProducts.add(product);
+                    }
                     log.info("Successfully loaded {} products from mock data", cachedProducts.size());
                 } else {
                     log.warn("Mock data file is empty or has invalid structure");
@@ -92,6 +90,14 @@ public class ProductService {
 
         log.info(">>> Fetching products - category: {}, type: {}, search: {}, page: {}, limit: {}",
                 category, type, search, page, limit);
+
+        // Use mock data if enabled
+        if (useMockData && cachedProducts != null && !cachedProducts.isEmpty()) {
+            log.info("Returning mock data with {} products", cachedProducts.size());
+            // Hardcoded pagination for mock data
+            Pagination pagination = Pagination.of(1, 10, cachedProducts.size());
+            return new ProductPageResult(cachedProducts, pagination);
+        }
 
         // Build specification dynamically - only add conditions for provided params
         Specification<ProductEntity> spec = buildSpecification(category, type, search);

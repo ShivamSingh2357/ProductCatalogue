@@ -22,7 +22,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: ci.yml
-          name: cicd
+          name: ProductCatalogue
           run_id: ${{ github.event.workflow_run.id }}
           path: artifact/
 
@@ -43,4 +43,4 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             sudo systemctl daemon-reload
-            sudo systemctl restart product-catalogue
+            sudo systemctl restart ProductCatalogue
